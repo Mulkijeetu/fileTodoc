@@ -1,29 +1,70 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { listStudents, uploadStudentFile, type Student } from './api';
+import { useRef, useState, type FormEvent } from 'react';
+import { uploadStudentFile, type ReadStudent } from './api';
 import './App.css';
 
 const ACCEPTED = '.pdf,image/jpeg,image/png,image/gif,image/webp';
+const CITY_NONE = 'none';
+const CITIES = [
+  'Mumbai',
+  'Delhi',
+  'Bengaluru',
+  'Hyderabad',
+  'Chennai',
+  'Kolkata',
+  'Pune',
+  'Ahmedabad',
+  'Jaipur',
+  'Kochi',
+];
+
+type StudentForm = {
+  studentName: string;
+  address: string;
+  course: string;
+  section: string;
+  grade: string;
+  city: string;
+  sourceFileName: string;
+};
+
+const EMPTY_FORM: StudentForm = {
+  studentName: '',
+  address: '',
+  course: '',
+  section: '',
+  grade: '',
+  city: CITY_NONE,
+  sourceFileName: '',
+};
+
+function cityValue(value: string | null | undefined): string {
+  const match = CITIES.find((city) => city.toLowerCase() === value?.trim().toLowerCase());
+  return match ?? CITY_NONE;
+}
+
+function toForm(student: ReadStudent): StudentForm {
+  return {
+    studentName: student.studentName ?? '',
+    address: student.address ?? '',
+    course: student.course ?? '',
+    section: student.section ?? '',
+    grade: student.grade ?? '',
+    city: cityValue(student.city),
+    sourceFileName: student.sourceFileName ?? '',
+  };
+}
 
 export default function App() {
-  const [students, setStudents] = useState<Student[]>([]);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [form, setForm] = useState<StudentForm>(EMPTY_FORM);
+  const [filled, setFilled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [loadError, setLoadError] = useState('');
-  const [freshId, setFreshId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    listStudents()
-      .then((rows) => {
-        setStudents(rows);
-        setLoadError('');
-      })
-      .catch((reason: unknown) => {
-        setLoadError(reason instanceof Error ? reason.message : 'Could not load records.');
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  function update(field: keyof StudentForm, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -35,10 +76,11 @@ export default function App() {
     setBusy(true);
     setError('');
     try {
-      const saved = await uploadStudentFile(file);
-      setStudents((current) => [saved, ...current.filter((row) => row.id !== saved.id)]);
-      setFreshId(saved.id);
+      const read = await uploadStudentFile(file);
+      setForm(toForm(read));
+      setFilled(true);
       setFile(null);
+      if (fileInput.current) fileInput.current.value = '';
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : 'Upload failed.');
     } finally {
@@ -52,7 +94,7 @@ export default function App() {
         <h1>Student records</h1>
         <p>
           Upload a PDF or a photo of a student form. The server reads the file
-          and stores the name, address, course, section, and grade.
+          and fills the name, address, city, course, section, and grade below.
         </p>
       </header>
 
@@ -61,6 +103,7 @@ export default function App() {
           <strong>PDF or image</strong>
           <span>JPEG, PNG, GIF, WebP, or PDF. Up to 10 MB.</span>
           <input
+            ref={fileInput}
             type="file"
             accept={ACCEPTED}
             onChange={(event) => {
@@ -71,47 +114,77 @@ export default function App() {
         </label>
         <div className="actions">
           <button type="submit" disabled={busy || !file}>
-            {busy ? 'Reading file…' : 'Read and save'}
+            {busy ? 'Reading file…' : 'Read file'}
           </button>
           <span className="file-name">{file ? file.name : 'No file selected'}</span>
         </div>
         {error ? <p className="error">{error}</p> : null}
       </form>
 
-      <section className="table-wrap" aria-live="polite">
-        {loading ? (
-          <p className="empty">Loading records…</p>
-        ) : loadError ? (
-          <p className="error">{loadError}</p>
-        ) : students.length === 0 ? (
-          <p className="empty">No records yet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Student name</th>
-                <th>Address</th>
-                <th>Course</th>
-                <th>Section</th>
-                <th>Grade</th>
-                <th>File</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student) => (
-                <tr key={student.id} className={student.id === freshId ? 'fresh' : undefined}>
-                  <td>{student.studentName ?? '—'}</td>
-                  <td>{student.address ?? '—'}</td>
-                  <td>{student.course ?? '—'}</td>
-                  <td>{student.section ?? '—'}</td>
-                  <td>{student.grade ?? '—'}</td>
-                  <td className="file">{student.sourceFileName}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <form className="panel details" onSubmit={(event) => event.preventDefault()}>
+        <h2>Student details</h2>
+        <p className="hint">
+          {filled
+            ? 'Values read from the file. You can edit them here. Nothing is saved.'
+            : 'These boxes fill in after you read a file.'}
+        </p>
+        <label className="field">
+          <span>Student name</span>
+          <input
+            value={form.studentName}
+            onChange={(event) => update('studentName', event.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Address</span>
+          <textarea
+            rows={4}
+            value={form.address}
+            onChange={(event) => update('address', event.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>City</span>
+          <select value={form.city} onChange={(event) => update('city', event.target.value)}>
+            <option value={CITY_NONE}>{CITY_NONE}</option>
+            {CITIES.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Course</span>
+          <input
+            value={form.course}
+            onChange={(event) => update('course', event.target.value)}
+          />
+        </label>
+        <div className="split">
+          <label className="field">
+            <span>Section</span>
+            <input
+              value={form.section}
+              onChange={(event) => update('section', event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Grade</span>
+            <input
+              value={form.grade}
+              onChange={(event) => update('grade', event.target.value)}
+            />
+          </label>
+        </div>
+        <label className="field">
+          <span>File</span>
+          <input
+            value={form.sourceFileName}
+            onChange={(event) => update('sourceFileName', event.target.value)}
+          />
+        </label>
+      </form>
     </main>
   );
 }

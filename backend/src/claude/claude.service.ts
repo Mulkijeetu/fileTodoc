@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   ExtractedStudent,
+  matchCity,
   STUDENT_FIELDS,
   STUDENT_JSON_SCHEMA,
 } from './extracted-student';
@@ -32,8 +33,8 @@ type ClaudeResponse = {
  * The only place this app calls Claude.
  *
  * React uploads the file to Nest. This service sends those bytes to the
- * Messages API and returns the five student fields. MySQL is written by
- * StudentsService after this method returns. The API key never leaves the server.
+ * Messages API and returns the student fields, including city. StudentsService passes
+ * that result back to the form. The API key never leaves the server.
  */
 @Injectable()
 export class ClaudeService {
@@ -77,7 +78,8 @@ export class ClaudeService {
                 type: 'text',
                 text: [
                   'Read this student document. It may be a form, ID card, admission slip, or mark sheet.',
-                  'Extract studentName, address, course, section, and grade exactly as printed.',
+                  'Extract studentName, address, course, section, grade, and city exactly as printed.',
+                  'For city, use a printed city name, or null when the document has no city.',
                   'Use null when a field is missing. Do not guess or use outside knowledge.',
                 ].join(' '),
               },
@@ -153,12 +155,15 @@ export class ClaudeService {
     }
 
     const record = raw as Record<string, unknown>;
+    const address = this.asText(record.address, 4000);
+    const printedCity = matchCity(this.asText(record.city, 255));
     const student: ExtractedStudent = {
       studentName: this.asText(record.studentName, 255),
-      address: this.asText(record.address, 4000),
+      address,
       course: this.asText(record.course, 255),
       section: this.asText(record.section, 64),
       grade: this.asText(record.grade, 64),
+      city: printedCity === 'none' ? matchCity(address) : printedCity,
     };
 
     const found = STUDENT_FIELDS.some((field) => student[field]);

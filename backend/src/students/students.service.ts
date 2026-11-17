@@ -2,7 +2,12 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClaudeService } from '../claude/claude.service';
+import { ExtractedStudent } from '../claude/extracted-student';
 import { Student } from './student.entity';
+
+export type ReadStudent = ExtractedStudent & {
+  sourceFileName: string;
+};
 
 const ALLOWED_TYPES = new Set([
   'application/pdf',
@@ -27,7 +32,7 @@ export class StudentsService {
     });
   }
 
-  async importFile(file: Express.Multer.File | undefined): Promise<Student> {
+  async importFile(file: Express.Multer.File | undefined): Promise<ReadStudent> {
     if (!file) {
       throw new BadRequestException('Choose a PDF or image to upload.');
     }
@@ -42,11 +47,9 @@ export class StudentsService {
 
     const extracted = await this.claude.extractStudent(file);
 
-    return this.students.save(
-      this.students.create({
-        ...extracted,
-        sourceFileName: file.originalname.slice(0, 255),
-      }),
-    );
+    return {
+      ...extracted,
+      sourceFileName: file.originalname.slice(0, 255),
+    };
   }
 }

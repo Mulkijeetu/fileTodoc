@@ -1,23 +1,14 @@
-export type Student = {
-  id: number;
+export type ReadStudent = {
   studentName: string | null;
   address: string | null;
   course: string | null;
   section: string | null;
   grade: string | null;
+  city: string | null;
   sourceFileName: string;
-  createdAt: string;
 };
 
-export async function listStudents(): Promise<Student[]> {
-  const response = await fetch('/api/students');
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-  return response.json();
-}
-
-export async function uploadStudentFile(file: File): Promise<Student> {
+export async function uploadStudentFile(file: File): Promise<ReadStudent> {
   const body = new FormData();
   body.append('file', file);
   const response = await fetch('/api/students/upload', {
@@ -33,7 +24,7 @@ export async function uploadStudentFile(file: File): Promise<Student> {
 async function readError(response: Response): Promise<string> {
   const contentType = response.headers.get('content-type') ?? '';
   if (!contentType.includes('application/json')) {
-    return 'The API is not reachable. Start MySQL, then run npm run dev:api.';
+    return 'The API is not reachable. Start the API, then try again.';
   }
   try {
     const data = (await response.json()) as { message?: string | string[] };
