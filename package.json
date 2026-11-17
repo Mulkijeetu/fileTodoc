@@ -1,0 +1,9 @@
+{
+  "name": "filetodoc",
+  "private": true,
+  "scripts": {
+    "dev:api": "npm run start:dev --prefix backend",
+    "dev:web": "npm run dev --prefix frontend",
+    "db:up": "docker compose up -d"
+  }
+}
