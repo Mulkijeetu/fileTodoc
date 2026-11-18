@@ -57,6 +57,39 @@
   margin-top: 14px;
 }
 
+.actions a,
+.header a {
+  color: #0f6e56;
+}
+
+.speak-panel {
+  display: grid;
+  justify-items: center;
+}
+
+.speaker {
+  width: 88px;
+  height: 88px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.speaker svg {
+  width: 36px;
+  height: 36px;
+}
+
+.speaker.live {
+  background: #8f2d2d;
+}
+
+.speak-panel .field,
+.speak-panel .actions {
+  width: 100%;
+}
+
 button {
   border: 0;
   border-radius: 999px;

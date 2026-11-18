@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DictateModule } from './dictate/dictate.module';
 import { StudentsModule } from './students/students.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { StudentsModule } from './students/students.module';
       }),
     }),
     StudentsModule,
+    DictateModule,
   ],
 })
 export class AppModule {}
